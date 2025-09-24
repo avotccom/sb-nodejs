@@ -10,54 +10,50 @@ const urlString = '保活地址1 保活地址2';
 const urls = urlString.split(/[\s,，]+/);
 const TIMEOUT = 5000;
 
-// 全局状态
+// 全局状态（给定时任务用，也给网页访问用）
 let lastRunTime = null;
-let lastResult = { success: 0, fail: 0 };
+let lastResult = { success: 0, fail: 0, details: [] };
 
 async function fetchWithTimeout(url) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT);
   try {
-    await fetch(url, { signal: controller.signal });
-    console.log(`✅ 成功: ${url}`);
-    return true;
+    const res = await fetch(url, { signal: controller.signal });
+    const ok = res.status === 200;
+    return { url, status: res.status, ok };
   } catch (error) {
-    console.warn(`❌ 访问失败: ${url}, 错误: ${error.message}`);
-    return false;
+    return { url, status: "ERR", ok: false };
   } finally {
     clearTimeout(timeout);
   }
 }
 
 async function handleScheduled() {
-  console.log('⏳ 任务开始');
   lastRunTime = new Date().toISOString();
-
-  let success = 0, fail = 0;
-
   const results = await Promise.all(urls.map(fetchWithTimeout));
-  for (const r of results) {
-    if (r) success++; else fail++;
-  }
-
-  lastResult = { success, fail };
-
-  console.log(`📊 任务结束 | 成功: ${success}, 失败: ${fail}`);
+  let success = results.filter(r => r.ok).length;
+  let fail = results.length - success;
+  lastResult = { success, fail, details: results };
 }
 
 async function handleFetch() {
+  // 每次访问自动执行一次检测
+  await handleScheduled();
+
   const html = `
   <html>
-    <head><title>OTC 保活状态</title></head>
+    <head><title>Worker 保活状态</title></head>
     <body style="font-family: sans-serif; padding: 20px;">
-      <h2>🌐 OTC 保活状态页</h2>
+      <h2>🌐 Worker 保活状态页</h2>
       <p>保活网址数量: <b>${urls.length}</b></p>
-      <p>上次执行时间: <b>${lastRunTime ? lastRunTime : '尚未执行'}</b></p>
-      <p>最近结果: ✅ ${lastResult.success} 成功, ❌ ${lastResult.fail} 失败</p>
+      <p>检测时间: <b>${lastRunTime}</b></p>
+      <p>结果统计: ✅ ${lastResult.success} 成功, ❌ ${lastResult.fail} 失败</p>
       <hr>
-      <p><b>网址列表:</b></p>
+      <p><b>网址状态:</b></p>
       <ul>
-        ${urls.map(u => `<li>${u}</li>`).join('')}
+        ${lastResult.details.map(d =>
+          `<li><a href="${d.url}" target="_blank">${d.url}</a> → ${d.ok ? "✅ 200 正常" : "❌ " + d.status}</li>`
+        ).join('')}
       </ul>
     </body>
   </html>
