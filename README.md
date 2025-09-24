@@ -10,3 +10,6 @@ DOMAIN：已解析在CF的域名
 ```
 wget -N https://raw.githubusercontent.com/avotccom/sb-nodejs/main/otc.sh && UUID=你的uuid PORT=服务器可使用的端口 DOMAIN=已解析在CF的域名 bash otc.sh
 ```
+###建议使用外部节点保活方式，可使用workers_keep文件进行保活###
+
+``节点保活及节点信息地址：https://你已解析在CF的域名/你的uuid``
